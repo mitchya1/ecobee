@@ -31,9 +31,12 @@ jobs:
     - name: Vet
       run: go vet -race ./
 
+    - name: Run Tests
+      run: go test -v ./pkg/ecobee
+
     - name: Build
       run: go build -o main ./
       env:
         GOOS: linux 
-        GOARCH: amd64 
+        GOARCH: amd64
         CGO_ENABLED: 0

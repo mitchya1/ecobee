@@ -59,7 +59,10 @@ type thermostatRuntime struct {
 }
 
 // GetThermostats accepts an access_token (t)
+// If you receive an ErrTokenExpired, you must call ecobee.RefreshTokens() then retry your request
 func GetThermostats(t string) (ThermostatsResponse, error) {
+
+	tr := &ThermostatsResponse{}
 
 	log.Info("Retrieving thermostats and their readings")
 
@@ -68,7 +71,7 @@ func GetThermostats(t string) (ThermostatsResponse, error) {
 	req, err := http.NewRequest("GET", thermostatURL, nil)
 
 	if err != nil {
-		panic(err)
+		return *tr, err
 	}
 
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", t))
@@ -87,29 +90,39 @@ func GetThermostats(t string) (ThermostatsResponse, error) {
 
 	if err != nil {
 		log.Error("Error marshalling thermostatReqProperties")
-		panic(err)
+		return *tr, err
 	}
 
 	q := req.URL.Query()
 	q.Add("json", string(r))
 	req.URL.RawQuery = q.Encode()
 
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+
+	defer resp.Body.Close()
+
+	if err != nil {
+		log.Error("Error making HTTP request to retrieve thermostats", err.Error())
+		return *tr, err
+	}
 
 	rb, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		log.Error("Error reading response body from thermostat call")
-		panic(err)
+		log.Error("Error reading respoonse body", err.Error())
+		return *tr, err
 	}
 
-	tr := &ThermostatsResponse{}
+	if err != nil {
+		log.Error("Error reading response body from thermostat call")
+		return *tr, err
+	}
 
 	err = json.Unmarshal(rb, tr)
 
 	if err != nil {
-		log.Error("Error unmarshaling response into TherostatsResponse")
-		panic(err)
+		log.Error("Error unmarshaling response into ThermostatsResponse")
+		return *tr, err
 	}
 
 	if tr.Status.Code == 14 {
