@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
-
-	"github.com/mitchya1/ecobee/pkg/auth"
+	"github.com/mitchya1/ecobee/pkg/ecobee"
 	"github.com/spf13/viper"
 )
 
@@ -20,7 +18,9 @@ func main() {
 	}
 
 	// API key, authorization code
-	c := auth.GetOAuth(viper.GetString("api_token"), viper.GetString("auth_code"))
-	fmt.Println(c)
+	c := ecobee.GetOAuth(viper.GetString("api_token"), viper.GetString("auth_code"), viper.GetString("token_file"))
+	//fmt.Printf("%+v", c)
+
+	ecobee.GetThermostats(c.AccessToken)
 
 }
