@@ -2,7 +2,7 @@
 
 Work in progress. Very hacky
 
-## Setup 
+## Ecobee Setup 
 
 Create an ecobee developer account [here](https://www.ecobee.com/developers/)
   - 2FA must be disabled on your ecobee account
@@ -38,3 +38,14 @@ influxdb_bucket: "bucket name to store data in"
 influxdb_org: "org name"
 influxdb_uri: "URI to influxdb, including protocol and port"
 ```
+
+## TODO
+
+Rework viper in `main.go` so it accepts flags with default values from env vars
+
+Rework refresh token flow to make it automatic
+  - This should happen in `ecobee.GetOAuth`
+
+Variable cleanup
+
+Handle errors better - no panic

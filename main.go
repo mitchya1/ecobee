@@ -19,11 +19,12 @@ func main() {
 	}
 
 	var oauth ecobee.Tokens
+	var thermostats ecobee.ThermostatsResponse
 
 	c := influxdb2.NewClient(viper.GetString("influxdb_uri"), viper.GetString("influxdb_token"))
 	defer c.Close()
 
-	ic := ecobee.InfluxDBClient{
+	ic := ecobee.InfluxContainer{
 		Client: c,
 		Bucket: viper.GetString("influxdb_bucket"),
 		Org:    viper.GetString("influxdb_org"),
@@ -32,15 +33,14 @@ func main() {
 	// API key, authorization code
 	oauth = ecobee.GetOAuth(viper.GetString("api_token"), viper.GetString("auth_code"), viper.GetString("token_file"))
 
-	thermostats, err := ecobee.GetThermostats(oauth.AccessToken)
+	thermostats, err = ecobee.GetThermostats(oauth.AccessToken)
 
 	if err != nil {
 		if err == ecobee.ErrTokenExpired {
 			oauth = ecobee.RefreshToken(viper.GetString("api_token"), viper.GetString("token_file"))
+			thermostats, err = ecobee.GetThermostats(oauth.AccessToken)
 		}
 	}
-
-	thermostats, err = ecobee.GetThermostats(oauth.AccessToken)
 
 	if err != nil {
 		panic(err)
@@ -50,5 +50,5 @@ func main() {
 	dh := thermostats.ThermostatList[0].Runtime.DesiredHeat
 	dc := thermostats.ThermostatList[0].Runtime.DesiredCool
 
-	ic.StoreTemperature(dh, dc, actual)
+	go ic.StoreTemperature(dh, dc, actual)
 }

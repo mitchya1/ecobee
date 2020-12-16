@@ -4,22 +4,24 @@ import (
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/prometheus/common/log"
 )
 
-type InfluxDBClient struct {
+// InfluxContainer holds our influxdb config
+type InfluxContainer struct {
 	Client influxdb2.Client
 	Bucket string
 	Org    string
 }
 
 // Noop is for development so the app will compile without calling real influx funcs
-func (c InfluxDBClient) Noop() {
+func (c InfluxContainer) Noop() {
 
 }
 
 // StoreTemperature accepts a desired heat (dh), desired cool (dc), and an actual temperature (at)
 // Then writes to influx
-func (c InfluxDBClient) StoreTemperature(dh, dc, at int) error {
+func (c InfluxContainer) StoreTemperature(dh, dc, at int) error {
 
 	w := c.Client.WriteAPI(c.Org, c.Bucket)
 
@@ -27,5 +29,8 @@ func (c InfluxDBClient) StoreTemperature(dh, dc, at int) error {
 
 	w.WritePoint(p)
 	w.Flush()
+
+	log.Info("Wrote information to influx")
+
 	return nil
 }

@@ -6,7 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"time"
+
+	"github.com/prometheus/common/log"
 )
 
 const (
@@ -22,7 +23,9 @@ type ecobeeAuthorizationCodeResponse struct {
 	Scope               string `json:"scope"`
 }
 
-type EcobeeOAuthResponse struct {
+// OAuthResponse is the initial OAuth response ecobee sends back, it contains access and refresh tokens
+// along with some other info we don't use yet
+type OAuthResponse struct {
 	AccessToken         string `json:"access_token"`
 	TokenType           string `json:"token_type"`
 	ExpirationInSeconds int64  `json:"expires_in"`
@@ -30,17 +33,16 @@ type EcobeeOAuthResponse struct {
 	RefreshToken        string `json:"refresh_token"`
 }
 
-type EcobeeAuthErrorResponse struct {
+// AuthErrorResponse is returned by ecobee when there's an issue authenticating
+// Usually this means the token is expired or you need to reauthenticate the app
+type AuthErrorResponse struct {
 	Error            string `json:"error"`
 	ErrorDescription string `json:"error_description"`
 }
 
-var (
-	TokenExpirationEpoch int64
-)
-
 // getAuthorizationCode returns an authorization code, given an API key (k) and an ecobee app PIN (p)
 // Ecobee docs: https://www.ecobee.com/home/developer/api/examples/ex1.shtml
+// There shouldn't be a reason to call this function but I'm keeping it in here for future reference
 func getAuthorizationCode(k string) (string, error) {
 
 	client := &http.Client{}
@@ -81,7 +83,6 @@ func getAuthorizationCode(k string) (string, error) {
 
 // GetOAuth returns a struct containing the OAuth response from Ecobee
 func GetOAuth(k, c, loc string) Tokens {
-
 	var t Tokens
 
 	if checkExistingTokens(loc) {
@@ -94,6 +95,7 @@ func GetOAuth(k, c, loc string) Tokens {
 	req, err := http.NewRequest("POST", tokenURL, nil)
 
 	if err != nil {
+		log.Error("Error creating request to retrieve tokens")
 		panic(err)
 	}
 
@@ -105,37 +107,42 @@ func GetOAuth(k, c, loc string) Tokens {
 
 	resp, err := client.Do(req)
 
-	now := time.Now().Unix()
-
 	if err != nil {
+		log.Error("Error making HTTP request to retrieve tokens")
 		panic(err)
 	}
 
-	rb, _ := ioutil.ReadAll(resp.Body)
-	e := &EcobeeOAuthResponse{}
+	rb, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Error("Error reading OAuth response body")
+		panic(err)
+	}
+
+	e := &OAuthResponse{}
 
 	err = json.Unmarshal(rb, e)
 
 	if e.AccessToken == "" {
-		er := &EcobeeAuthErrorResponse{}
+		er := &AuthErrorResponse{}
 		err = json.Unmarshal(rb, er)
 		if err != nil {
+			log.Error("Error unmarshaling oauth response into AuthErrorResponse")
 			panic(err)
 		}
 
 		if er.Error == "invalid_grant" {
 			RefreshToken(t.RefreshToken, loc)
 		} else if er.Error == "slow_down" {
-			fmt.Println("Ecobee is rate limiting. Dying")
+			log.Error("Ecobee is rate limiting. Dying")
 			os.Exit(1)
 		}
 	}
 
 	if err != nil {
+		log.Error("Error unmarshaling oauth response into OAuthResponse")
 		panic(err)
 	}
-
-	TokenExpirationEpoch = now + e.ExpirationInSeconds
 
 	t.AccessToken = e.AccessToken
 	t.RefreshToken = e.RefreshToken
@@ -145,9 +152,11 @@ func GetOAuth(k, c, loc string) Tokens {
 	return t
 }
 
-// RefreshToken returns a new EcobeeOAuthResponse
+// RefreshToken returns a new OAuthResponse
 // It accepts an API key (k) and a file location (loc)
 func RefreshToken(k, loc string) Tokens {
+
+	log.Info("Refreshing tokens")
 
 	existingTokens := readTokensFromFile(loc)
 
@@ -169,27 +178,25 @@ func RefreshToken(k, loc string) Tokens {
 
 	resp, err := client.Do(req)
 
-	now := time.Now().Unix()
-
 	if err != nil {
+		log.Error("Error making HTTP request to refresh tokens")
 		panic(err)
 	}
 
 	rb, _ := ioutil.ReadAll(resp.Body)
-	e := &EcobeeOAuthResponse{}
+	e := &OAuthResponse{}
 
 	err = json.Unmarshal(rb, e)
 
 	if err != nil {
+		log.Error("Error unmarshaling response into OAuthResponse")
 		panic(err)
 	}
 
 	if e.AccessToken == "" {
-		fmt.Println(string(rb))
+		log.Debug(string(rb))
 		panic("Unable to refresh Tokens")
 	}
-
-	TokenExpirationEpoch = now + e.ExpirationInSeconds
 
 	tok.AccessToken = e.AccessToken
 	tok.RefreshToken = e.RefreshToken
@@ -199,21 +206,14 @@ func RefreshToken(k, loc string) Tokens {
 	return tok
 }
 
-// CheckTokenExpiration checks if the access_token from ecobee is expired
-func CheckTokenExpiration() bool {
-	if time.Now().Unix() >= TokenExpirationEpoch {
-		return true
-	}
-
-	return false
-}
-
+// Tokens stores our access and refresh tokens
 type Tokens struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
 
 func writeTokens(at, rt, loc string) {
+	log.Info("Storing tokens in tokenfile at ", loc)
 	t := &Tokens{
 		AccessToken:  at,
 		RefreshToken: rt,
@@ -222,18 +222,22 @@ func writeTokens(at, rt, loc string) {
 	tb, err := json.Marshal(t)
 
 	if err != nil {
+		log.Error("Error marshaling tokens into Tokens")
 		panic(err)
 	}
 
 	err = ioutil.WriteFile(loc, tb, 0644)
 
 	if err != nil {
+		log.Error("Error writing tokens file to ", loc)
 		panic(err)
 	}
 }
 
 // Returns true if file exists
 func checkExistingTokens(loc string) bool {
+
+	log.Info("Checking if tokens file exists")
 
 	if _, err := os.Stat(loc); err == nil {
 		return true
@@ -245,6 +249,7 @@ func readTokensFromFile(loc string) Tokens {
 	data, err := ioutil.ReadFile(loc)
 
 	if err != nil {
+		log.Error("Error reading tokens from file at", loc)
 		panic(err)
 	}
 

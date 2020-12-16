@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/prometheus/common/log"
 )
 
 const (
@@ -59,10 +61,8 @@ type thermostatRuntime struct {
 // GetThermostats accepts an access_token (t)
 func GetThermostats(t string) (ThermostatsResponse, error) {
 
-	// TODO don't panic here, just refresh the token
-	/*if CheckTokenExpiration() {
-		panic("Access token is expired")
-	}*/
+	log.Info("Retrieving thermostats and their readings")
+
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", thermostatURL, nil)
@@ -86,6 +86,7 @@ func GetThermostats(t string) (ThermostatsResponse, error) {
 	r, err := json.Marshal(p)
 
 	if err != nil {
+		log.Error("Error marshalling thermostatReqProperties")
 		panic(err)
 	}
 
@@ -93,31 +94,33 @@ func GetThermostats(t string) (ThermostatsResponse, error) {
 	q.Add("json", string(r))
 	req.URL.RawQuery = q.Encode()
 
-	//fmt.Println(req.URL.String())
-
 	resp, _ := client.Do(req)
 
-	rb, _ := ioutil.ReadAll(resp.Body)
+	rb, err := ioutil.ReadAll(resp.Body)
 
-	//fmt.Println(string(rb))
+	if err != nil {
+		log.Error("Error reading response body from thermostat call")
+		panic(err)
+	}
 
 	tr := &ThermostatsResponse{}
 
-	// TODO check if we need to refresh
-
 	err = json.Unmarshal(rb, tr)
 
-	if tr.Status.Code == 14 {
-		return *tr, ErrTokenExpired
+	if err != nil {
+		log.Error("Error unmarshaling response into TherostatsResponse")
+		panic(err)
 	}
 
-	if err != nil {
-		panic(err)
+	if tr.Status.Code == 14 {
+		log.Warn("Access token is expired, you should refresh it")
+		return *tr, ErrTokenExpired
 	}
 
 	return *tr, nil
 }
 
+// GetCurrentTemperature isn't used yet because we retrieve that from the runtime info in GetThermostats
 func GetCurrentTemperature(id string, t string) {
 
 }
