@@ -29,7 +29,7 @@ jobs:
         go-version: '^1.15.5'
 
     - name: Vet
-      uses: go vet -race ./
+      run: go vet -race ./
 
     - name: Build
       run: go build -o main ./cmd
