@@ -33,4 +33,8 @@ A yaml file with these keys:
 api_token: "API token from the application - found under 'Developer'"
 auth_code: "Authorization code from Step 1: https://www.ecobee.com/home/developer/api/examples/ex1.shtml"
 token_file: "Path to store access and refresh tokens"
+influxdb_token: "InfluxDB API token"
+influxdb_bucket: "bucket name to store data in"
+influxdb_org: "org name"
+influxdb_uri: "URI to influxdb, including protocol and port"
 ```

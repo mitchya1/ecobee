@@ -20,10 +20,11 @@ type ecobeeSelection struct {
 	SelectionType  string `json:"selectionType"`
 	SelectionMatch string `json:"selectionMatch"`
 	IncludeAlerts  bool   `json:"includeAlerts"`
-	IncludeRuntime string `json:"includeRuntime"`
+	IncludeRuntime bool   `json:"includeRuntime"`
 }
 
-type thermostatsResponse struct {
+// ThermostatsResponse is the response from retrieving the ecobee thermostats in your account
+type ThermostatsResponse struct {
 	ThermostatList []thermostatList `json:"thermostatList"`
 	Page           thermostatPages  `json:"page"`
 	Status         thermostatStatus `json:"status"`
@@ -40,13 +41,23 @@ type thermostatPages struct {
 	Total      int `json:"total"`
 }
 type thermostatList struct {
-	ID       string `json:"identifier"`
-	Name     string `json:"name"`
-	Revision string `json:"thermostatRev"`
+	ID       string            `json:"identifier"`
+	Name     string            `json:"name"`
+	Revision string            `json:"thermostatRev"`
+	Runtime  thermostatRuntime `json:"runtime"`
+}
+
+type thermostatRuntime struct {
+	Connected bool `json:"connected"`
+	// TODO get lastStatusModified, which is a time.Time value of some sort
+	ActualTemperature int `json:"actualTemperature"`
+	ActualHumidity    int `json:"actualHumidity"`
+	DesiredHeat       int `json:"desiredHeat"`
+	DesiredCool       int `json:"desiredCool"`
 }
 
 // GetThermostats accepts an access_token (t)
-func GetThermostats(t string) thermostatsResponse {
+func GetThermostats(t string) (ThermostatsResponse, error) {
 
 	// TODO don't panic here, just refresh the token
 	/*if CheckTokenExpiration() {
@@ -68,6 +79,7 @@ func GetThermostats(t string) thermostatsResponse {
 		Selection: ecobeeSelection{
 			SelectionType:  "registered",
 			SelectionMatch: "",
+			IncludeRuntime: true,
 		},
 	}
 
@@ -81,27 +93,31 @@ func GetThermostats(t string) thermostatsResponse {
 	q.Add("json", string(r))
 	req.URL.RawQuery = q.Encode()
 
-	fmt.Println(req.URL.String())
+	//fmt.Println(req.URL.String())
 
 	resp, _ := client.Do(req)
 
 	rb, _ := ioutil.ReadAll(resp.Body)
 
-	fmt.Println(string(rb))
+	//fmt.Println(string(rb))
 
-	tr := &thermostatsResponse{}
+	tr := &ThermostatsResponse{}
 
 	// TODO check if we need to refresh
 
 	err = json.Unmarshal(rb, tr)
 
+	if tr.Status.Code == 14 {
+		return *tr, ErrTokenExpired
+	}
+
 	if err != nil {
 		panic(err)
 	}
 
-	return *tr
+	return *tr, nil
 }
 
-func GetCurrentTemperature(id string) {
+func GetCurrentTemperature(id string, t string) {
 
 }

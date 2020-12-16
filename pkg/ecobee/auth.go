@@ -80,9 +80,9 @@ func getAuthorizationCode(k string) (string, error) {
 }
 
 // GetOAuth returns a struct containing the OAuth response from Ecobee
-func GetOAuth(k, c, loc string) tokens {
+func GetOAuth(k, c, loc string) Tokens {
 
-	var t tokens
+	var t Tokens
 
 	if checkExistingTokens(loc) {
 		t = readTokensFromFile(loc)
@@ -124,7 +124,7 @@ func GetOAuth(k, c, loc string) tokens {
 		}
 
 		if er.Error == "invalid_grant" {
-			RefreshToken(k, t.RefreshToken, loc)
+			RefreshToken(t.RefreshToken, loc)
 		} else if er.Error == "slow_down" {
 			fmt.Println("Ecobee is rate limiting. Dying")
 			os.Exit(1)
@@ -146,10 +146,12 @@ func GetOAuth(k, c, loc string) tokens {
 }
 
 // RefreshToken returns a new EcobeeOAuthResponse
-// It accepts a refresh_token (t) and API key (k)
-func RefreshToken(t, k, loc string) tokens {
+// It accepts an API key (k) and a file location (loc)
+func RefreshToken(k, loc string) Tokens {
 
-	var tok tokens
+	existingTokens := readTokensFromFile(loc)
+
+	var tok Tokens
 
 	client := &http.Client{}
 
@@ -161,7 +163,7 @@ func RefreshToken(t, k, loc string) tokens {
 
 	q := req.URL.Query()
 	q.Add("grant_type", "refresh_token")
-	q.Add("code", t)
+	q.Add("code", existingTokens.RefreshToken)
 	q.Add("client_id", k)
 	req.URL.RawQuery = q.Encode()
 
@@ -184,7 +186,7 @@ func RefreshToken(t, k, loc string) tokens {
 
 	if e.AccessToken == "" {
 		fmt.Println(string(rb))
-		panic("Unable to refresh tokens")
+		panic("Unable to refresh Tokens")
 	}
 
 	TokenExpirationEpoch = now + e.ExpirationInSeconds
@@ -206,13 +208,13 @@ func CheckTokenExpiration() bool {
 	return false
 }
 
-type tokens struct {
+type Tokens struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
 
 func writeTokens(at, rt, loc string) {
-	t := &tokens{
+	t := &Tokens{
 		AccessToken:  at,
 		RefreshToken: rt,
 	}
@@ -239,14 +241,14 @@ func checkExistingTokens(loc string) bool {
 	return false
 }
 
-func readTokensFromFile(loc string) tokens {
+func readTokensFromFile(loc string) Tokens {
 	data, err := ioutil.ReadFile(loc)
 
 	if err != nil {
 		panic(err)
 	}
 
-	t := &tokens{}
+	t := &Tokens{}
 
 	err = json.Unmarshal(data, t)
 
