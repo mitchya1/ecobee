@@ -1,0 +1,39 @@
+name: "Vet and Build"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ main ]
+  schedule:
+    - cron: '26 10 * * 3'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'go' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup GO
+      uses: actions/setup-go@v2
+      with:
+        go-version: '^1.15.5'
+
+    - name: Vet
+      uses: go vet -race ./
+
+    - name: Build
+      run: go build -o main ./cmd
+      env:
+        GOOS: linux 
+        GOARCH: amd64 
+        CGO_ENABLED: 0
