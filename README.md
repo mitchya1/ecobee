@@ -27,6 +27,14 @@ The authorization code returned from GetOAuth can only be used once!
 
 ## Configuration File
 
+The configuration file **must** be named `ecobee.yml` and **must** exist in either:
+
+- The directory that you call the binary from (If the binary exists in `/opt/ecobee/ecobee` and you run it from `/var/tmp/`, the config file should be `/var/tmp/ecobee.yml`)
+
+- `$HOME/.ecobee/`
+
+- `/etc/ecobee/`
+
 A yaml file with these keys:
 
 ```yml
@@ -41,11 +49,7 @@ influxdb_uri: "URI to influxdb, including protocol and port"
 
 ## TODO
 
-Rework viper in `main.go` so it accepts flags with default values from env vars
-
 Rework refresh token flow to make it automatic
   - This should happen in `ecobee.GetOAuth`
 
 Variable cleanup
-
-Handle errors better - no panic
