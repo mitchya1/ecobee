@@ -19,13 +19,6 @@ job "influx" {
 
   group "influx" {
     count = 1
- 
-    volume "influx" {
-      type = "host"
-      source = "influx"
-      read_only = false
-    }
-
     
     restart {
       attempts = 1
@@ -37,17 +30,32 @@ job "influx" {
     task "influxdb" {
       driver = "docker"
 
-      volume_mount {
-        volume      = "influx"
-        destination = "/var/lib/influxdb"
-        read_only = false
-      }
-
       config {
         image = "quay.io/influxdb/influxdb:v2.0.3"
         port_map {
           db = 8086
         }
+
+        /* This requires that agents have a config stanza like so
+        
+          plugin "docker" {
+            config {
+              volumes {
+                enabled = true
+                selinuxlabel = "z"
+              }
+            }
+          }
+        
+        If you reference https://raw.githubusercontent.com/influxdata/docs-v2/master/static/downloads/influxdb-k8-minikube.yaml
+        You'll see that the default storage path is /root/.influxdbv2
+
+        Alternatively you can set the INFLUXD_ENGINE_PATH env var
+        https://docs.influxdata.com/influxdb/v2.0/reference/config-options/#engine-path
+        */
+        volumes = [
+          "/opt/nomad/influx:/root/.influxdbv2"
+        ]
       }
 
       service {
