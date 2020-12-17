@@ -24,7 +24,7 @@ job "ecobee" {
       user = "ecobee"
 
       config {
-          // Binary located here
+          // Binary located here, nomad provides /bin/ to the chroot environment
           // Config and token file are in /etc/ecobee/
           command = "/bin/ecobee"
       }
