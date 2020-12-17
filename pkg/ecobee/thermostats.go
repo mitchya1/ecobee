@@ -102,26 +102,21 @@ func GetThermostats(t string) (ThermostatsResponse, error) {
 	defer resp.Body.Close()
 
 	if err != nil {
-		log.Error("Error making HTTP request to retrieve thermostats", err.Error())
+		log.Error("Error making HTTP request to retrieve thermostats. Error: ", err.Error())
 		return *tr, err
 	}
 
 	rb, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		log.Error("Error reading respoonse body", err.Error())
-		return *tr, err
-	}
-
-	if err != nil {
-		log.Error("Error reading response body from thermostat call")
+		log.Error("Error reading response body from thermostat call. Error: ", err.Error())
 		return *tr, err
 	}
 
 	err = json.Unmarshal(rb, tr)
 
 	if err != nil {
-		log.Error("Error unmarshaling response into ThermostatsResponse")
+		log.Error("Error unmarshaling response into ThermostatsResponse. Error: ", err.Error())
 		return *tr, err
 	}
 

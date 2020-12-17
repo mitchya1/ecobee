@@ -52,12 +52,11 @@ func (client EBClient) GetOAuthTokens() (Tokens, error) {
 	var t Tokens
 	var err error
 
-	// If
 	if checkTokensFileExists(client.TokenFile) {
 		t, err = readTokensFromFile(client.TokenFile)
 
 		if err != nil {
-			log.Fatal("Unable to read tokens, therefore unable to proceed", err.Error())
+			log.Fatal("Unable to read tokens, therefore unable to proceed. Error: ", err.Error())
 			os.Exit(1)
 		}
 		return t, nil
@@ -101,11 +100,12 @@ func (client EBClient) GetOAuthTokens() (Tokens, error) {
 		err = json.Unmarshal(rb, er)
 		if err != nil {
 			log.Error("Error unmarshaling oauth response into AuthErrorResponse")
-			log.Error("Response body is", string(rb))
+			log.Error("Response body is: ", string(rb))
 			return t, err
 		}
 		// Check the AuthErrorResponse.Error
 		if er.Error == "invalid_grant" {
+			log.Error("Received invalid grant response. Attempting to refresh tokens")
 			client.RefreshToken()
 		} else if er.Error == "slow_down" {
 			log.Error("Ecobee is rate limiting. Dying")
@@ -219,6 +219,7 @@ func checkTokensFileExists(loc string) bool {
 	log.Info("Checking if tokens file exists")
 
 	if _, err := os.Stat(loc); err == nil {
+		log.Info("Tokens file exists")
 		return true
 	}
 
