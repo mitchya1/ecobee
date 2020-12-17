@@ -15,14 +15,6 @@ const (
 	tokenURL = "https://api.ecobee.com/token"
 )
 
-type ecobeeAuthorizationCodeResponse struct {
-	EcobeePIN           string `json:"ecobeePin"`
-	Code                string `json:"code"` // This is use once
-	Interval            int    `json:"interval"`
-	ExpirationInSeconds int    `json:"expires_in"`
-	Scope               string `json:"scope"`
-}
-
 // OAuthResponse is the initial OAuth response ecobee sends back, it contains access and refresh tokens
 // along with some other info we don't use yet
 type OAuthResponse struct {
@@ -109,14 +101,18 @@ func (client EBClient) GetOAuthTokens() (Tokens, error) {
 		err = json.Unmarshal(rb, er)
 		if err != nil {
 			log.Error("Error unmarshaling oauth response into AuthErrorResponse")
+			log.Error("Response body is", string(rb))
 			return t, err
 		}
-
+		// Check the AuthErrorResponse.Error
 		if er.Error == "invalid_grant" {
 			client.RefreshToken()
 		} else if er.Error == "slow_down" {
 			log.Error("Ecobee is rate limiting. Dying")
-			os.Exit(1)
+			return t, ErrRateLimited
+		} else {
+			log.Error("Received unaccounted for error from ecobee API ", er.Error)
+			return t, ErrUnaccountedFor
 		}
 	}
 
@@ -250,6 +246,14 @@ func readTokensFromFile(loc string) (Tokens, error) {
 	}
 
 	return *t, nil
+}
+
+type ecobeeAuthorizationCodeResponse struct {
+	EcobeePIN           string `json:"ecobeePin"`
+	Code                string `json:"code"` // This is use once
+	Interval            int    `json:"interval"`
+	ExpirationInSeconds int    `json:"expires_in"`
+	Scope               string `json:"scope"`
 }
 
 // getAuthorizationCode returns an authorization code, given an API key (k) and an ecobee app PIN (p)
