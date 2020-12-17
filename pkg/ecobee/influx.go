@@ -21,11 +21,16 @@ func (c InfluxContainer) Noop() {
 
 // StoreTemperature accepts a desired heat (dh), desired cool (dc), and an actual temperature (at)
 // Then writes to influx
-func (c InfluxContainer) StoreTemperature(dh, dc, at int) error {
+// This function converts an incoming temperature ints to float64 and divides them by 10.0,
+// Make sure you pass the raw values received from ecobee
+func (c InfluxContainer) StoreTemperature(dh, dc, at int, n string) error {
 
 	w := c.Client.WriteAPI(c.Org, c.Bucket)
 
-	p := influxdb2.NewPoint("stat", map[string]string{"unit": "temperature"}, map[string]interface{}{"desired_heat": float64(dh / 10.0), "desired_cool": float64(dc / 10.0), "actual_temperature": float64(at / 10.0)}, time.Now())
+	p := influxdb2.NewPoint("stat",
+		map[string]string{"unit": "temperature", "ecobee_thermostat_name": n},
+		map[string]interface{}{"ecobee_desired_heat": float64(dh / 10.0), "ecobee_desired_cool": float64(dc / 10.0), "ecobee_actual_temperature": float64(at / 10.0)},
+		time.Now())
 
 	w.WritePoint(p)
 	w.Flush()

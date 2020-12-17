@@ -29,14 +29,20 @@ func main() {
 	c := influxdb2.NewClient(viper.GetString("influxdb_uri"), viper.GetString("influxdb_token"))
 	defer c.Close()
 
+	// Create InfluxContainer struct to hold influxdb config info
+	// Also stores the client so we can write tests against it
+	// This is optional
 	ic := ecobee.InfluxContainer{
 		Client: c,
 		Bucket: viper.GetString("influxdb_bucket"),
 		Org:    viper.GetString("influxdb_org"),
 	}
 
+	// Create HTTP client that will be used to make calls to the Ecobee API
 	client := &http.Client{}
 
+	// Populate the EBClient struct
+	// GetOAuthTokens and RefreshTokens receive this struct
 	ecobeeClient := ecobee.EBClient{
 		Client:    client,
 		APIKey:    viper.GetString("api_token"),
@@ -44,13 +50,19 @@ func main() {
 		TokenFile: viper.GetString("token_file"),
 	}
 
-	// API key, authorization code
+	// GetOAuthTokens returns access and refresh tokens and also writes them to the token file specified in EBClient
+	// This function will attempts to refresh the tokens if the access token is expired
+	// If that fails, an error is returned and you should exit and check the logs
 	oauth, err = ecobeeClient.GetOAuthTokens()
 
 	if err != nil {
 		os.Exit(1)
 	}
 
+	// This returns a list of thermostats along with their runtime information
+	// Runtime information contains temperature information
+	// Ecobee says not to use this for polling, but I haven't looked at their polling documentation enough to write code against it
+	// Ecobee also says thermostats usually send data back to ecobee every 15 minutes, so don't call this more often than that
 	thermostats, err = ecobee.GetThermostats(oauth.AccessToken)
 
 	if err != nil {
@@ -66,9 +78,13 @@ func main() {
 		}
 	}
 
-	actual := thermostats.ThermostatList[0].Runtime.ActualTemperature
-	dh := thermostats.ThermostatList[0].Runtime.DesiredHeat
-	dc := thermostats.ThermostatList[0].Runtime.DesiredCool
+	// Storing data in influx is optional
+	for _, therm := range thermostats.ThermostatList {
+		ic.StoreTemperature(
+			therm.Runtime.DesiredHeat,
+			therm.Runtime.DesiredCool,
+			therm.Runtime.ActualTemperature,
+			therm.Name)
+	}
 
-	ic.StoreTemperature(dh, dc, actual)
 }
