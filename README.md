@@ -1,31 +1,66 @@
 # ecobee
 
-Work in progress. Very hacky
+![Tests](https://github.com/mitchya1/ecobee/workflows/Tests/badge.svg)
 
-## Ecobee Setup 
+A module to work with the Ecobee API.
 
-Create an ecobee developer account [here](https://www.ecobee.com/developers/)
-  - 2FA must be disabled on your ecobee account
+This is a work in progress. Right now, it can handle:
 
-Log into ecobee
+- Retrieving and storing access and refresh tokens
 
-Go to the developer tab
+- Refreshing tokens
 
-Create an app
+- Retrieving a list of thermostats and their runtime information (which includes temperature)
 
-Authorize the app
+- Optionally writing information to InfluxDB
 
-Retrieve the API key from the app you created
+## Using
 
-Go through the first step [here](https://www.ecobee.com/home/developer/api/examples/ex1.shtml) to retrieve your authorization code
+You can `go get` this module:
 
-## Notes To Self
+`go get github.com/mitchya1/ecobee/pkg/ecobee`
 
-Running the `auth.getAuthorizationCode` function will cause you to have to re-add the app with a new PIN, so don't run that
+Follow the steps in the **Ecobee Setup** section for steps on how to set up Ecobee. This involves some manual work.
 
-The authorization code returned from GetOAuth can only be used once!
+**Important Note:** After completing the steps in **Ecobee Setup**, you have 900 seconds to retrieve your access and refresh tokens.
 
-## Configuration File
+At this point, you should have information to retrieve your tokens.
+
+The initial code to retrieve tokens could look like this:
+
+```go
+package main
+
+import (
+  "net/http"
+  "os"
+  "github.com/mitchya1/ecobee/pkg/ecobee"
+)
+func main() {
+
+  client := &http.Client{}
+
+  ecobeeClient := ecobee.EBClient{
+		Client:    client,
+		APIKey:    "YOUR API KEY",
+		AuthCode:  "YOUR AUTH CODE",
+		TokenFile: "PATH TO TOKEN FILE",
+  }
+  
+  // This will automatically store the tokens wherever you specify in
+  // ecobee.EBClient.TokenFile
+  oauth, err = ecobeeClient.GetOAuthTokens()
+
+	if err != nil {
+		os.Exit(1)
+	}
+}
+```
+
+### Configuration File
+
+If you plan on borrowing from `/main.go`, here are some notes about the configuration file:
+
 
 The configuration file **must** be named `ecobee.yml` and **must** exist in either:
 
@@ -47,9 +82,28 @@ influxdb_org: "org name"
 influxdb_uri: "URI to influxdb, including protocol and port"
 ```
 
+
+## Ecobee Setup 
+
+Create an ecobee developer account [here](https://www.ecobee.com/developers/)
+  - 2FA must be disabled on your ecobee account
+
+Log into ecobee
+
+Go to the developer tab
+
+Create an app
+
+Authorize the app under "My Apps" in the Ecobee web app
+
+Retrieve the API key from the app you created
+
+Go through the first step [here](https://www.ecobee.com/home/developer/api/examples/ex1.shtml) to retrieve your authorization code
+  - This code can only be used once, otherwise you'll have to redo these steps and re-add the app under "My Apps" in the Ecobee web app
+
 ## TODO
 
 Rework refresh token flow to make it automatic
   - This should happen in `ecobee.GetOAuth`
 
-Variable cleanup
+Make thermostat retrieval more [variabalized](https://www.ecobee.com/home/developer/api/documentation/v1/objects/Selection.shtml)
