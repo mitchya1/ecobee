@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 
+	owm "github.com/briandowns/openweathermap"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/mitchya1/ecobee/pkg/ecobee"
 	"github.com/spf13/viper"
@@ -78,6 +81,15 @@ func main() {
 		}
 	}
 
+	w, err := owm.NewCurrent("F", "en", viper.GetString("owm_api_key")) // fahrenheit (imperial) with English output
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if err = w.CurrentByZip(viper.GetInt("owm_zip_code"), "US"); err != nil {
+		fmt.Println("Error getting weather")
+	}
+
 	// Storing data in influx is optional
 	for _, therm := range thermostats.ThermostatList {
 		ic.StoreTemperature(
@@ -85,6 +97,10 @@ func main() {
 			therm.Runtime.DesiredCool,
 			therm.Runtime.ActualTemperature,
 			therm.Name)
+
+		if w.Cod == 200 {
+			ic.StoreCurrentOutsideTemperature(w.Main.Temp, therm.Name)
+		}
 	}
 
 }
