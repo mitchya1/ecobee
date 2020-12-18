@@ -59,7 +59,7 @@ func main() {
 
 ### Configuration File
 
-If you plan on borrowing from `/main.go`, here are some notes about the configuration file:
+If you plan on borrowing from `/example/main.go`, here are some notes about the configuration file:
 
 
 The configuration file **must** be named `ecobee.yml` and **must** exist in either:
@@ -80,6 +80,8 @@ influxdb_token: "InfluxDB API token"
 influxdb_bucket: "bucket name to store data in"
 influxdb_org: "org name"
 influxdb_uri: "URI to influxdb, including protocol and port"
+owm_zip_code: 11111
+owm_api_key: "Your ecobee API key"
 ```
 
 
