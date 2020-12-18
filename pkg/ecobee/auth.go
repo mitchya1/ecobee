@@ -77,12 +77,13 @@ func (client EBClient) GetOAuthTokens() (Tokens, error) {
 
 	resp, err := client.Client.Do(req)
 
-	defer resp.Body.Close()
-
 	if err != nil {
 		log.Error("Error making HTTP request to retrieve tokens")
+		resp.Body.Close()
 		return t, err
 	}
+
+	defer resp.Body.Close()
 
 	rb, err := ioutil.ReadAll(resp.Body)
 
@@ -160,12 +161,13 @@ func (client EBClient) RefreshToken() Tokens {
 
 	resp, err := client.Client.Do(req)
 
-	defer resp.Body.Close()
-
 	if err != nil {
 		log.Error("Error making HTTP request to refresh tokens")
+		resp.Body.Close()
 		panic(err)
 	}
+
+	defer resp.Body.Close()
 
 	rb, _ := ioutil.ReadAll(resp.Body)
 

@@ -99,12 +99,13 @@ func GetThermostats(t string) (ThermostatsResponse, error) {
 
 	resp, err := client.Do(req)
 
-	defer resp.Body.Close()
-
 	if err != nil {
 		log.Error("Error making HTTP request to retrieve thermostats. Error: ", err.Error())
+		resp.Body.Close()
 		return *tr, err
 	}
+
+	defer resp.Body.Close()
 
 	rb, err := ioutil.ReadAll(resp.Body)
 
