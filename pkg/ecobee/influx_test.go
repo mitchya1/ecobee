@@ -24,6 +24,16 @@ func TestWriteData(t *testing.T) {
 	}
 }
 
+func TestWriteOutsideTemperature(t *testing.T) {
+	i := createContainer()
+
+	err := i.StoreCurrentOutsideTemperature(float64(rand.Intn(100))/10.0, "ci-thermostat")
+
+	if err != nil {
+		t.FailNow()
+	}
+}
+
 func createContainer() InfluxContainer {
 
 	c := influxdb2.NewClient(os.Getenv("INFLUXDB_URI"), os.Getenv("INFLUXDB_TOKEN"))
