@@ -47,15 +47,19 @@ func (c InfluxContainer) StoreTemperature(dh, dc, at int, n string) error {
 
 // StoreCurrentOutsideTemperature writes current temperature information to InfluxDB
 func (c InfluxContainer) StoreCurrentOutsideTemperature(t float64, n string) error {
-	w := c.Client.WriteAPI(c.Org, c.Bucket)
+	w := c.Client.WriteAPIBlocking(c.Org, c.Bucket)
 
 	p := influxdb2.NewPoint("stat",
 		map[string]string{"unit": "temperature", "ecobee_thermostat_name": n},
 		map[string]interface{}{"current_outside_temperature": t},
 		time.Now())
 
-	w.WritePoint(p)
-	w.Flush()
+	err := w.WritePoint(context.Background(), p)
+
+	if err != nil {
+		log.Error("Error writing point to influx ", err.Error())
+		return err
+	}
 
 	log.Info("Wrote outside temperature information to influx")
 
